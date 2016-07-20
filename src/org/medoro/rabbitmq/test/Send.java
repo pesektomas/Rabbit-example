@@ -9,14 +9,13 @@ import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.JTextField;
 
-import org.medoro.rabbitmq.config.Config;
-
 import com.jgoodies.forms.builder.PanelBuilder;
 import com.jgoodies.forms.layout.CellConstraints;
 import com.jgoodies.forms.layout.FormLayout;
 import com.rabbitmq.client.Channel;
 import com.rabbitmq.client.Connection;
 import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.MessageProperties;
 
 public class Send {
 
@@ -26,8 +25,8 @@ public class Send {
 		frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
 		frame.setLayout(new BorderLayout());
 		frame.setAlwaysOnTop(true);
-		
-		final JTextField queue = new JTextField();
+
+		final SettingsPanel settingsPanel = new SettingsPanel();
 		final JTextField text = new JTextField();
 		final JButton btn = new JButton(new AbstractAction("Send message") {
 
@@ -38,16 +37,16 @@ public class Send {
 				try {
 					ConnectionFactory factory = new ConnectionFactory();
 					factory.setRequestedHeartbeat(60);
-					factory.setHost(Config.getInstance().getProperty("rabbitAddress"));
-				    factory.setUsername(Config.getInstance().getProperty("rabbitUser"));
-					factory.setPassword(Config.getInstance().getProperty("rabbitPassword"));
+					factory.setHost(settingsPanel.getRabbitServer());
+				    factory.setUsername(settingsPanel.getRabbitUser());
+					factory.setPassword(settingsPanel.getRabbitPassword());
 				    Connection connection = factory.newConnection();
 				    try {
 				    	Channel channel = connection.createChannel();
 					    try {
-					    	channel.queueDeclare(queue.getText(), false, false, false, null);
+					    	channel.queueDeclare(settingsPanel.getQueue(), true, false, false, null);
 						    String message = text.getText();
-						    channel.basicPublish("", queue.getText(), null, message.getBytes());
+						    channel.basicPublish("", settingsPanel.getQueue(), MessageProperties.PERSISTENT_TEXT_PLAIN, message.getBytes());
 						    JOptionPane.showMessageDialog(frame, "sended!");
 					    } finally {
 					    	channel.close();
@@ -63,16 +62,20 @@ public class Send {
 		
 		text.setText("Message ...");
 		
-		PanelBuilder builder = new PanelBuilder(new FormLayout("9dlu, r:p, 6dlu, f:120dlu:g, 9dlu, ", "9dlu, p, 3dlu, p, 3dlu, p, 9dlu"));
+		PanelBuilder builder = new PanelBuilder(new FormLayout("9dlu, f:240dlu:g, 9dlu, ", "p, 3dlu, p, 3dlu, p, 3dlu, p, 9dlu"));
 		CellConstraints cc = new CellConstraints();
+		int row = 1;
 		
-		builder.addLabel("Queue: ", cc.xy(2, 2));
-		builder.add(queue, cc.xy(4, 2));
+		builder.add(settingsPanel.getPanel(), cc.xyw(1, row, 3));
+		row += 2;
 		
-		builder.addLabel("Message: ", cc.xy(2, 4));
-		builder.add(text, cc.xy(4, 4));
+		builder.addSeparator("Message", cc.xy(2, row));
+		row += 2;
 		
-		builder.add(btn, cc.xyw(2, 6, 3));
+		builder.add(text, cc.xy(2, row));
+		row += 2;
+		
+		builder.add(btn, cc.xy(2, row));
 		
 		frame.add(builder.getPanel(), BorderLayout.NORTH);
 		frame.pack();
